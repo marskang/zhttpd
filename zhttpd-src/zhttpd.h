@@ -15,11 +15,7 @@
 int zhttpd_init();
 int zhttpd_start();
 ssize_t zhttpd_read_line(int fd, char *buffer, int len);
-int zhttpd_read_header(int fd, char *buffer, int len);
-int zhttpd_read_header(int fd, char *buffer, int len); 
-int zhttpd_read_quest(int fd, char *buffer, int len);
-int zhttpd_read_reqline(int fd, char *buffer, int len);
-void zhttpd_set_head(struct request_head *head, char *key, char *val);
+void handle_accept(int epollfd, int listenfd);
 int ss;
 
 #endif

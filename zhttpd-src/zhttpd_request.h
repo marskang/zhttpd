@@ -24,11 +24,10 @@ struct request_head {
     char *upgrade_insecure_requests;
 };
 
-struct request_head req_head;
-
-int zhttpd_read_header(int fd, char *buffer, int len);
+int zhttpd_read_header(int fd,struct request_head *req_head);
 int zhttpd_read_quest(int fd);
-int zhttpd_read_reqline(int fd, char *buffer, int len);
+int zhttpd_read_reqline(int fd,struct request_head *req_head);
 void zhttpd_set_head(struct request_head *head, char *key, char *val);
+void zhttpd_free_head(struct request_head *req_head);
 
 #endif

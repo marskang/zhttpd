@@ -6,10 +6,12 @@
 
 int 
 zhttpd_read_quest(int fd) {
-    char *buffer;
-    buffer = (char *)malloc(MAX_LINE_SIZE);
-    int re = zhttpd_read_reqline(fd, buffer, MAX_LINE_SIZE);
-    if(re <= 0) return re;
+    struct request_head req_head = {0};
+    int re = zhttpd_read_reqline(fd, &req_head);
+    if(re <= 0) {
+        resp_400(fd);
+        return re;
+    }
     if(!strcasecmp("GET", req_head.method)) {
         char *temp;
         char *str = strtok_r(req_head.context, "?", &temp);
@@ -19,42 +21,72 @@ zhttpd_read_quest(int fd) {
         str = strtok_r(NULL, "?", &temp);
         if(str == NULL) str = "";
         memcpy(req_head.query_string , str, MAX_LINE_SIZE);
+    } else {
+        //目前只实现了get请求
+        zhttpd_free_head(&req_head);
+        resp_501(fd);
+        return -1;
     }
-    re = zhttpd_read_header(fd, buffer, MAX_LINE_SIZE);
-    if(re <= 0) return re;
+    re = zhttpd_read_header(fd, &req_head);
+    if(re <= 0){
+        resp_400(fd);
+        zhttpd_free_head(&req_head);
+        return re;
+    } 
     req_head.fd = fd;
     zhttpd_start_service(&req_head);
+    //结束之后释放请求头的结构体
+    zhttpd_free_head(&req_head);
     return 0;
 }
 
+void 
+zhttpd_free_head(struct request_head *req_head) {
+    free(req_head->method);
+    free(req_head->context);
+    free(req_head->query_string);
+    free(req_head->protocol);
+    free(req_head->host);
+    free(req_head->user_agent);
+    free(req_head->accept);
+    free(req_head->accept_language);
+    free(req_head->accept_encoding);
+    free(req_head->connection);
+    free(req_head->upgrade_insecure_requests);
+}
 
+/**
+ * 解析请求行
+**/
 int 
-zhttpd_read_reqline(int fd, char *buffer, int len) {
-    assert(buffer);
-    memset(buffer, 0, len);
-    int re = zhttpd_read_line(fd, buffer, len);
+zhttpd_read_reqline(int fd, struct request_head *req_head) {
+    char buffer[MAX_LINE_SIZE];
+    memset(buffer, 0, MAX_LINE_SIZE);
+    int re = zhttpd_read_line(fd, buffer, MAX_LINE_SIZE);
     if(re <= 0) return re;
     char str_temp[MAX_LINE_SIZE];
     strncpy(str_temp, buffer, sizeof(str_temp) - 1);
     char *temp, *str;
-    req_head.method = (char *)malloc(MAX_LINE_SIZE);
-    req_head.context = (char *)malloc(MAX_LINE_SIZE);
-    req_head.protocol = (char *)malloc(MAX_LINE_SIZE);
+    req_head->method = (char *)malloc(MAX_LINE_SIZE);
+    req_head->context = (char *)malloc(MAX_LINE_SIZE);
+    req_head->protocol = (char *)malloc(MAX_LINE_SIZE);
     str = strtok_r(str_temp, " ", &temp);
     if(str == NULL) return -1;
-    memcpy(req_head.method, str, MAX_LINE_SIZE);
+    memcpy(req_head->method, str, MAX_LINE_SIZE);
     str = strtok_r(NULL, " ", &temp);
     if(str == NULL) return -1;
-    memcpy(req_head.context, str, MAX_LINE_SIZE);
+    memcpy(req_head->context, str, MAX_LINE_SIZE);
     str = strtok_r(NULL, " ", &temp);
     if(str == NULL) return -1;
-    memcpy(req_head.protocol, str, MAX_LINE_SIZE);
+    memcpy(req_head->protocol, str, MAX_LINE_SIZE);
     return re;
 }
 
 int 
-zhttpd_read_header(int fd, char *buffer, int len) {
+zhttpd_read_header(int fd, struct request_head *req_head) {
     ssize_t size = 0;
+    char buffer[MAX_LINE_SIZE];
+    memset(buffer, 0, MAX_LINE_SIZE);
     for(;;) {
         size = zhttpd_read_line(fd, buffer, MAX_LINE_SIZE);
         if(size <= 0) return size;
@@ -78,7 +110,7 @@ zhttpd_read_header(int fd, char *buffer, int len) {
             key++;
         }
         key[strlen(key) - 1] = '\0';
-        zhttpd_set_head(&req_head, key, val);
+        zhttpd_set_head(req_head, key, val);
     }
     return size;
 }

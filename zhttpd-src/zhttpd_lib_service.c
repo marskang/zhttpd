@@ -18,6 +18,7 @@ resp_write(lua_State *L) {
         lua_pushnumber(L, -1);
         return 1;
     } 
+    printf("%s\n", str);
     ssize_t size = write(fd, str, strlen(str));
     lua_pushnumber(L, size);
     return 1;

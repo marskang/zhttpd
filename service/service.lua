@@ -1,7 +1,7 @@
-local resp = require "libresp"
-local request = {}
-request.attr = {}
-
+package.path = package.path ..';../?.lua';
+local resp = require('service.response')
+local req = {}
+req.attr = {}
 local responseHeader = [[HTTP/1.1 200 OK
 Content-Length: %d
 Content-Type: text/html
@@ -28,23 +28,25 @@ function split(s, delim)
     return t
 end
 
-function set_querystring(querystring,fd)
+function file_exists(path)
+    local file = io.open(path, "rb")
+    if file then file:close() end
+    return file ~= nil
+end
+
+function service(req_path,querystring,fd)
     local attr_tab = split(querystring, "&")
-    local body = [[<html><head><title>hello</title></head><body>what</body></html>]]
-    print(body)
-    print(string.len(body))
-    local header = 
-        string.format(responseHeader,48)
-    --print(header)
-    local res = resp.resp_write(fd, header)
-    res = resp.resp_write(fd, body)
-    print(res)
-    print("fd"..fd)
     for k, v in pairs(attr_tab) do
         local t = split(v, "=")
-        request.attr[t[1]] = t[2]
+        req.attr[t[1]] = t[2]
     end
-    for k, v in pairs(request.attr) do
-        print("k:"..k.."v:"..v)
+    resp:init(fd)
+    if file_exists(req_path) then 
+        module_path = string.gsub(req_path, "/", ".")
+        module_path = string.gsub(module_path, ".lua", "")
+        local req_module = require(module_path)
+        req_module.servive(req, resp)
+    else
+        resp:resp_404()
     end
 end

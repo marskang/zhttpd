@@ -5,6 +5,7 @@ zhttpd-src/zhttpd.c \
 zhttpd-src/zhttpd_main.c \
 zhttpd-src/zhttpd_request.c \
 zhttpd-src/socket_epoll.c \
+zhttpd-src/zhttpd_response.c \
 lualib-src/lua_request.c 
 
 SRC := $(ZHTTPD)
@@ -13,17 +14,17 @@ LUALIBPATH := service
 
 TARGET = zhttpd
 
-LDFLAGS += -L. -lresp
+LDFLAGS += -L. -lservice
 
 LDFLAGS += -L./3rd/lua -llua -lm -ldl
 
 CC=gcc
 
 all : \
-libresp.so \
+libservice.so \
 zhttpd
 
-libresp.so : zhttpd-src/zhttpd_response.c
+libservice.so : zhttpd-src/zhttpd_lib_service.c
 	$(CC) $(CFLAGS) -shared -fPIC  $^ -o $@ 
 
 zhttpd :

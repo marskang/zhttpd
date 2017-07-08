@@ -1,5 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
@@ -13,49 +15,79 @@ zhttpd_write(struct zhttpd_resp resp, char *buffer) {
     size = write(resp.fd, buffer, strlen(buffer));   
     return size;
 }
-
-
-static luaL_Reg mylibs[] = {
-    { "resp_write", resp_write },
-    { NULL , NULL }
-};
-
-int 
-resp_write(lua_State *L) {
-    int fd =  lua_tonumber(L, 1);
-    const char *str = lua_tostring(L, 2);
-    ssize_t size = write(fd, str, strlen(str));
-    lua_pushnumber(L, size);
-    return 1;
-}
  
 void 
-zhttpd_start_resp(struct request_head *req_head) {
+zhttpd_start_service(struct request_head *req_head) {
     char *context = req_head->context;
+    printf("context:%s\n", context);
     int fd = req_head->fd;
-    zhttpd_set_lua_querystring(req_head->query_string, fd);
+    char path[256] = "htdocs";
+    int len = strlen(context);
+    if(!strcasecmp(context, "/")) {
+        strcat(path, "/index.html");
+        printf("path:%s\n", path);
+    } else {
+        if(context[len-1] == '/') {
+            context[--len] = '\0';
+        }
+        char suffix[4];
+        suffix[4] = '\0';
+        int i = 0;
+        strcat(path, context);
+        if(len > 4) {
+            while(i <= 2) {
+                suffix[i] = context[len-3+i];
+                i++;
+            }
+            if(!strcasecmp(suffix, "lua")) {
+                zhttpd_set_lua_service(path, req_head->query_string, fd);
+                return;
+            }
+        }
+        printf("path:%s\n", path);
+    }
+    zhttpd_resp_file(path, fd);
+}
+
+void 
+zhttpd_resp_file(char *path, int fd) {
+    int tfd = -1;
+    tfd = open(path, O_RDONLY);
+    if(-1 == tfd) {
+        resp_404(fd);
+        return;
+    }
+    resp_200(fd);
+    ssize_t size = -1;
+    char buffer[1024];
+    while(size) {
+        size = read(tfd, buffer, 1024);
+        if(-1 == size) {
+            resp_500(fd);
+            close(tfd);
+            return;
+        }
+        if(size > 0) {
+            write(fd, buffer, strlen(buffer));
+        }
+    }
 }
 
 int
-zhttpd_set_lua_querystring(char *query_string, int fd) {
-    char *filename = "service/request.lua";
+zhttpd_set_lua_service(char *req_file,char *query_string, int fd) {
+    char *filename = "service/service.lua";
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
     if(luaL_dofile(L, filename) || lua_pcall(L, 0,0,0)) {
         printf("error 1,%s\n", lua_tostring(L, -1));
     }
-    lua_getglobal(L, "set_querystring");
+    lua_getglobal(L, "service");
+    lua_pushstring(L, req_file);
     lua_pushstring(L, query_string);
     lua_pushnumber(L, fd);
-    lua_pcall(L, 2, 1, 0);
+    lua_pcall(L, 3, 1, 0);
     lua_close(L);
     return 0;
-}
-
-int
-luaopen_libresp(lua_State *L) {
-    luaL_newlib(L, mylibs);
-    return 1;
 }
 
 inline void 
@@ -116,5 +148,10 @@ resp_500(int fd) {
 
 inline void 
 resp_200(int fd) {
-
+    const char *str = 
+        "HTTP/1.1 200 OK\r\n" 
+        "Server: zhttpd\r\n"
+        "Content-Type: text/html\r\n"
+        "\r\n";
+    write(fd, str, strlen(str));  
 }

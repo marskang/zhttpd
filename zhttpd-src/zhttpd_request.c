@@ -3,8 +3,6 @@
 #include <ctype.h>
 #include "zhttpd_request.h"
 #include "zhttpd_response.h"
-/*#define my_isspace(c) \
-    ((c==' ')||(c>='\t' && c<='\r'))*/
 
 int 
 zhttpd_read_quest(int fd) {
@@ -25,7 +23,7 @@ zhttpd_read_quest(int fd) {
     re = zhttpd_read_header(fd, buffer, MAX_LINE_SIZE);
     if(re <= 0) return re;
     req_head.fd = fd;
-    zhttpd_start_resp(&req_head);
+    zhttpd_start_service(&req_head);
     return 0;
 }
 

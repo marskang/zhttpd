@@ -10,8 +10,10 @@ struct zhttpd_resp {
 };
 
 
-void zhttpd_start_resp(struct request_head *req_head);
-int zhttpd_set_lua_querystring(char *query_string, int fd);
+void zhttpd_start_service(struct request_head *req_head);
+
+int zhttpd_set_lua_service(char *req_file, char *query_string, int fd);
+
 void resp_400(int fd);
 
 void resp_404(int fd);
@@ -22,8 +24,7 @@ void resp_500(int fd);
 
 void resp_200(int fd);
 
-/** 用于lua调用 */
-int resp_write(lua_State *L); 
+void zhttpd_resp_file(char *path, int fd);
 
 
 #endif

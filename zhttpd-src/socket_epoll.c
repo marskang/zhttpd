@@ -4,7 +4,7 @@
 
 int 
 sp_create() {
-    return epoll_create(1200);
+    return epoll_create(1024);
 }
 
 void 
